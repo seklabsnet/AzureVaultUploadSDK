@@ -2,6 +2,8 @@
   "name": "azurevault-upload-api",
   "version": "1.0.0",
   "private": true,
+  "main": "dist/functions/*.js",
+  "type": "module",
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",

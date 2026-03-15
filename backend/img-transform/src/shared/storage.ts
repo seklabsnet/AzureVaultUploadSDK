@@ -22,7 +22,7 @@ export async function readBlob(containerName: string, blobPath: string): Promise
 
   const chunks: Buffer[] = [];
   for await (const chunk of download.readableStreamBody as NodeJS.ReadableStream) {
-    chunks.push(Buffer.from(chunk as ArrayBuffer));
+    chunks.push(Buffer.from(chunk as unknown as ArrayBuffer));
   }
   return Buffer.concat(chunks);
 }

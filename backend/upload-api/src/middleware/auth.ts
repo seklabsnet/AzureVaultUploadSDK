@@ -40,7 +40,7 @@ export async function authenticateRequest(request: HttpRequest): Promise<AuthCon
     return {
       userId: String(userId),
       appId: String(appId),
-      email: payload.email ?? payload.preferred_username ?? undefined,
+      email: (payload.email ?? payload.preferred_username ?? undefined) as string | undefined,
     };
   } catch (err) {
     if (err instanceof AuthError) {

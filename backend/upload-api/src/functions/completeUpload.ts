@@ -69,7 +69,7 @@ async function handler(request: HttpRequest, context: InvocationContext): Promis
     const containerName = upload.isPublic ? "uploads-public" : `uploads-${auth.appId}`;
 
     // Commit block list to Azure Storage
-    await commitBlockList(containerName, upload.blobPath, body.blockIds);
+    await commitBlockList(containerName, upload.blobPath!, body.blockIds);
 
     // Generate unique fileId
     const fileId = uuidv4();
@@ -78,9 +78,9 @@ async function handler(request: HttpRequest, context: InvocationContext): Promis
     let downloadUrl: string;
     if (upload.isPublic) {
       const cdnBaseUrl = process.env.CDN_BASE_URL ?? "";
-      downloadUrl = cdnBaseUrl ? `${cdnBaseUrl}/${fileId}` : getBlobUrl(containerName, upload.blobPath);
+      downloadUrl = cdnBaseUrl ? `${cdnBaseUrl}/${fileId}` : getBlobUrl(containerName, upload.blobPath!);
     } else {
-      const sas = await generateSasToken(containerName, upload.blobPath, "r", 60);
+      const sas = await generateSasToken(containerName, upload.blobPath!, "r", 60);
       downloadUrl = `${sas.blobUrl}?${sas.sasToken}`;
     }
 

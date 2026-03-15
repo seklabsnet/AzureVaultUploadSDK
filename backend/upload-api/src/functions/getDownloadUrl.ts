@@ -42,14 +42,14 @@ async function handler(request: HttpRequest, context: InvocationContext): Promis
       } else {
         // Fallback to direct blob URL if CDN is not configured
         const containerName = "uploads-public";
-        const sas = await generateSasToken(containerName, upload.blobPath, "r", 60);
+        const sas = await generateSasToken(containerName, upload.blobPath!, "r", 60);
         downloadUrl = `${sas.blobUrl}?${sas.sasToken}`;
         expiresAt = sas.expiresAt;
       }
     } else {
       // Private files: generate read-only SAS token with 1 hour expiry
       const containerName = `uploads-${auth.appId}`;
-      const sas = await generateSasToken(containerName, upload.blobPath, "r", 60);
+      const sas = await generateSasToken(containerName, upload.blobPath!, "r", 60);
       downloadUrl = `${sas.blobUrl}?${sas.sasToken}`;
       expiresAt = sas.expiresAt;
     }

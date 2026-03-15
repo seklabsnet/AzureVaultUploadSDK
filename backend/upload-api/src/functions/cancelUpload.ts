@@ -37,7 +37,7 @@ async function handler(request: HttpRequest, context: InvocationContext): Promis
     // Delete blob from storage based on status
     if (upload.status === "COMPLETED" || upload.status === "UPLOADING" || upload.status === "PAUSED") {
       try {
-        await deleteBlob(containerName, upload.blobPath);
+        await deleteBlob(containerName, upload.blobPath!);
       } catch (blobErr) {
         // Log but don't fail the cancellation if blob deletion fails
         context.warn(`[cancelUpload] Failed to delete blob for upload ${uploadId}:`, blobErr);
