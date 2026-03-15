@@ -1,0 +1,40 @@
+CREATE TABLE upload (
+    upload_id TEXT NOT NULL PRIMARY KEY,
+    file_name TEXT NOT NULL,
+    file_size INTEGER NOT NULL,
+    mime_type TEXT,
+    entity_type TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'PENDING',
+    progress REAL NOT NULL DEFAULT 0.0,
+    blob_url TEXT,
+    sas_token TEXT,
+    sas_expires_at TEXT,
+    file_id TEXT,
+    download_url TEXT,
+    blur_hash TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+selectAll:
+SELECT * FROM upload WHERE status != 'COMPLETED' AND status != 'CANCELLED' ORDER BY created_at DESC;
+
+selectById:
+SELECT * FROM upload WHERE upload_id = ?;
+
+insert:
+INSERT INTO upload(upload_id, file_name, file_size, mime_type, entity_type, entity_id, status, progress, blob_url, sas_token, sas_expires_at, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+updateStatus:
+UPDATE upload SET status = ?, progress = ?, updated_at = ? WHERE upload_id = ?;
+
+updateSasToken:
+UPDATE upload SET sas_token = ?, sas_expires_at = ?, updated_at = ? WHERE upload_id = ?;
+
+updateCompleted:
+UPDATE upload SET status = 'COMPLETED', progress = 1.0, file_id = ?, download_url = ?, blur_hash = ?, updated_at = ? WHERE upload_id = ?;
+
+delete:
+DELETE FROM upload WHERE upload_id = ?;

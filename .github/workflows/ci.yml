@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Run domain tests
+        run: ./gradlew :upload-domain:testDebugUnitTest
+
+      - name: Run core tests
+        run: ./gradlew :upload-core:testDebugUnitTest
+
+      - name: Build Android AAR
+        run: ./gradlew :upload-api:assembleRelease
+
+      - name: Build iOS XCFramework
+        run: ./gradlew :upload-api:assembleAzureVaultUploadSDKReleaseXCFramework
+
+      - name: Build sample app
+        run: ./gradlew :sample-android:assembleDebug
+
+      - name: Upload AAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: upload-api-aar
+          path: upload-api/build/outputs/aar/*.aar
+
+      - name: Upload XCFramework artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AzureVaultUploadSDK-xcframework
+          path: upload-api/build/XCFrameworks/release/
+
+  publish:
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Publish to Maven Local
+        run: ./gradlew :upload-api:publishToMavenLocal
