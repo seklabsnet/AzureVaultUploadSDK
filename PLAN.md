@@ -116,17 +116,49 @@ Azure Blob Storage üzerine inşa edilmiş, KMP (Kotlin Multiplatform) tabanlı 
 - [x] CI/CD pipeline (GitHub Actions — build, test, publish workflow)
 
 ## Phase 13: Azure Infrastructure (Backend)
-- [ ] Resource Group, Storage Account, Containers
-- [ ] Cosmos DB (metadata store)
-- [ ] Key Vault (secrets)
-- [ ] Azure Functions — Upload Service (.NET)
-- [ ] Azure Functions — Image Transform (Node.js + Sharp)
-- [ ] CDN (Front Door) — image delivery
-- [ ] API Management — gateway + rate limiting
-- [ ] Event Grid — blob events
-- [ ] Application Insights + Log Analytics
-- [ ] SignalR (v1.1)
-- [ ] Microsoft Defender for Storage
+
+Multi-app mimari: Tek altyapı, proje bazlı storage izolasyonu.
+Apps: Centauri, HappyBrain + gelecek projeler.
+APIM yok — tek bir API server (Azure Functions) tüm auth, rate limit, routing'i kendi halleder.
+
+### 13.1 — Foundation (maliyet: ~$0)
+- [x] Resource Group (rg-azurevault-prod, westeurope)
+- [x] Application Insights + Log Analytics (ai-azurevault-prod)
+
+### 13.2 — Storage (maliyet: ~$5/ay boşken)
+- [x] Storage Account (YOUR_STORAGE_ACCOUNT) + sistem container'ları (uploads-staging, uploads-public, uploads-quarantine, uploads-cache)
+- [x] Per-app container'lar (uploads-centauri, uploads-happybrain)
+- [x] Lifecycle policies (staging 7d TTL, quarantine 1d TTL, cache → cool tier)
+- [x] Soft delete (30 gün)
+
+### 13.3 — Database (maliyet: ~$15/ay)
+- [x] Azure Database for PostgreSQL Flexible Server (Burstable B1ms, northeurope)
+- [x] Database: azurevault
+- [ ] Tables: uploads, chunk_states, app_config, audit_log (13B'de schema migration)
+
+### 13.4 — Secrets (maliyet: ~$0)
+- [x] Key Vault (kv-azurevault-prod)
+- [x] StorageConnectionString → Key Vault
+- [x] PostgresConnectionString → Key Vault
+
+### 13.5 — Upload API Server (maliyet: ~$0 consumption plan)
+- [x] Azure Functions app shell (func-azurevault-upload, Node.js 20)
+- [x] Managed Identity + RBAC (Key Vault Secrets User + Storage Blob Data Contributor)
+- [x] App Settings (KeyVaultUri, StorageAccountName, PostgresHost, PostgresDb)
+- [ ] Endpoint kodu (13B'de yazılacak)
+
+### 13.6 — Image Transform (maliyet: ~$0 consumption plan)
+- [x] Azure Functions app shell (func-azurevault-imgtransform, Node.js 20)
+- [x] Managed Identity + RBAC (Storage Blob Data Contributor)
+- [x] App Settings (StorageAccountName, CACHE_CONTAINER, MAX_WIDTH, MAX_HEIGHT)
+- [ ] Transform kodu (13B'de yazılacak)
+
+### 13.7 — CDN + Events (maliyet: ~$25/ay)
+- [x] Azure Front Door (afd-azurevault-prod, Standard tier)
+- [x] CDN endpoint: YOUR_CDN_ENDPOINT.azurefd.net
+- [x] Origin → func-azurevault-imgtransform, query string caching enabled
+- [ ] Event Grid subscription (13B'de — BlobEventHandler fonksiyonu deploy edildikten sonra)
+- [x] Defender for Storage — malware scan aktif
 
 ---
 
