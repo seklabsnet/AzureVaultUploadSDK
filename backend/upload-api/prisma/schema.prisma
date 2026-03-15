@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Upload {
+  id            String   @id @default(uuid())
+  appId         String   @map("app_id")
+  fileName      String   @map("file_name")
+  fileSize      BigInt   @map("file_size")
+  mimeType      String?  @map("mime_type")
+  entityType    String   @map("entity_type")
+  entityId      String   @map("entity_id")
+  status        UploadStatus @default(PENDING)
+  progress      Float    @default(0)
+  blobPath      String?  @map("blob_path")
+  fileId        String?  @unique @map("file_id")
+  downloadUrl   String?  @map("download_url")
+  blurHash      String?  @map("blur_hash")
+  md5Hash       String?  @map("md5_hash")
+  isPublic      Boolean  @default(false) @map("is_public")
+  sasToken      String?  @map("sas_token")
+  sasExpiresAt  DateTime? @map("sas_expires_at")
+  errorMessage  String?  @map("error_message")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  completedAt   DateTime? @map("completed_at")
+
+  chunks        ChunkState[]
+  auditLogs     AuditLog[]
+
+  @@index([appId, entityType, entityId])
+  @@index([appId, status])
+  @@index([appId, createdAt])
+  @@index([fileId])
+  @@map("uploads")
+}
+
+model ChunkState {
+  uploadId    String @map("upload_id")
+  chunkIndex  Int    @map("chunk_index")
+  blockId     String @map("block_id")
+  size        BigInt
+  offset      BigInt
+  uploaded    Boolean @default(false)
+
+  upload      Upload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+
+  @@id([uploadId, chunkIndex])
+  @@map("chunk_states")
+}
+
+model AppConfig {
+  appId                 String   @id @map("app_id")
+  displayName           String   @map("display_name")
+  allowedMimeTypes      String[] @map("allowed_mime_types")
+  maxFileSize           BigInt   @map("max_file_size")
+  maxConcurrentUploads  Int      @default(3) @map("max_concurrent_uploads")
+  storageQuota          BigInt   @map("storage_quota")
+  webhookUrl            String?  @map("webhook_url")
+  rateLimitPerMinute    Int      @default(1000) @map("rate_limit_per_minute")
+  isActive              Boolean  @default(true) @map("is_active")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  @@map("app_config")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  uploadId   String   @map("upload_id")
+  appId      String   @map("app_id")
+  action     String
+  details    Json?
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  upload     Upload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+
+  @@index([appId, createdAt])
+  @@index([uploadId])
+  @@map("audit_log")
+}
+
+enum UploadStatus {
+  PENDING
+  VALIDATING
+  UPLOADING
+  PAUSED
+  COMMITTING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}

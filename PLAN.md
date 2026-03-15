@@ -145,13 +145,16 @@ APIM yok — tek bir API server (Azure Functions) tüm auth, rate limit, routing
 - [x] Azure Functions app shell (func-azurevault-upload, Node.js 20)
 - [x] Managed Identity + RBAC (Key Vault Secrets User + Storage Blob Data Contributor)
 - [x] App Settings (KeyVaultUri, StorageAccountName, PostgresHost, PostgresDb)
-- [ ] Endpoint kodu (13B'de yazılacak)
+- [x] Endpoint kodu: initiateUpload, completeUpload, getUploadStatus, getDownloadUrl, cancelUpload, listUploads, blobEventHandler
+- [x] Middleware: auth (JWT), rateLimit (sliding window)
+- [x] Shared: prisma client, storage helpers (SAS gen, blob ops), keyvault, audit log, errors, response helpers
+- [x] Prisma schema: uploads, chunk_states, app_config, audit_log tables
 
 ### 13.6 — Image Transform (maliyet: ~$0 consumption plan)
 - [x] Azure Functions app shell (func-azurevault-imgtransform, Node.js 20)
 - [x] Managed Identity + RBAC (Storage Blob Data Contributor)
 - [x] App Settings (StorageAccountName, CACHE_CONTAINER, MAX_WIDTH, MAX_HEIGHT)
-- [ ] Transform kodu (13B'de yazılacak)
+- [x] Transform kodu: Sharp resize/format, 3-layer cache (CDN → transform cache blob → origin), security validation
 
 ### 13.7 — CDN + Events (maliyet: ~$25/ay)
 - [x] Azure Front Door (afd-azurevault-prod, Standard tier)
