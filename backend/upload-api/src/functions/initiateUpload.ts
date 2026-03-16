@@ -61,7 +61,11 @@ async function handler(request: HttpRequest, context: InvocationContext): Promis
     });
 
     if (!appConfig) {
-      throw new NotFoundError(`App configuration not found for appId: ${auth.appId}`);
+      throw new NotFoundError(
+        `App "${auth.appId}" is not registered. ` +
+        `Register it first via POST /v1/admin/apps with: ` +
+        `{ appId, displayName, allowedMimeTypes, maxFileSize, storageQuota }`,
+      );
     }
 
     if (!appConfig.isActive) {
