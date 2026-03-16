@@ -26,6 +26,7 @@ internal class AzureVaultUploaderImpl(
             fileSize = file.size,
             mimeType = file.mimeType,
             metadata = metadata,
+            readFileData = { offset, size -> FileReader.readBytes(file, offset, size) },
         )
     }
 
@@ -41,6 +42,7 @@ internal class AzureVaultUploaderImpl(
                 fileSize = file.size,
                 mimeType = file.mimeType,
                 metadata = metadata,
+                readFileData = { offset, size -> FileReader.readBytes(file, offset, size) },
             ).collect { state ->
                 lastState = state
                 val overallProgress = (completed.toFloat() + when (state) {

@@ -44,7 +44,17 @@ class UploadEngine(
     private val timeMark = kotlin.time.TimeSource.Monotonic.markNow()
     private fun currentTimeMs(): Long = timeMark.elapsedNow().inWholeMilliseconds
 
-    fun upload(fileName: String, fileSize: Long, mimeType: String?, metadata: UploadMetadata): Flow<UploadState> = flow {
+    /**
+     * @param readFileData Lambda that reads bytes from the file. (offset, size) -> ByteArray
+     *   Provided by upload-api layer which has access to PlatformFile + FileReader.
+     */
+    fun upload(
+        fileName: String,
+        fileSize: Long,
+        mimeType: String?,
+        metadata: UploadMetadata,
+        readFileData: (offset: Long, size: Long) -> ByteArray,
+    ): Flow<UploadState> = flow {
         emit(UploadState.Validating)
 
         // 1. Validate
@@ -123,7 +133,16 @@ class UploadEngine(
                     uploadId = uploadId, progress = 0f, bytesUploaded = 0L, totalBytes = fileSize,
                     bytesPerSecond = 0L, estimatedTimeRemaining = -1L, currentChunk = 1, totalChunks = 1,
                 ))
-                // TODO: actual single-shot upload via blobUploader.uploadSingleShot
+                // Single-shot: read entire file and upload
+                val fileData = readFileData(0, fileSize)
+                val startTime = currentTimeMs()
+                blobUploader.uploadSingleShot(
+                    blobUrl = initResponse.blobUrl,
+                    sasToken = initResponse.sasToken,
+                    data = fileData,
+                    contentType = mimeType,
+                )
+                bandwidthEstimator.recordSample(fileSize, currentTimeMs() - startTime)
             } else {
                 val chunks = chunkManager.createChunks(fileSize, strategy)
 
@@ -161,12 +180,13 @@ class UploadEngine(
                                     maxAttempts = 5,
                                     retryIf = { e -> errorClassifier.isRetryable(errorClassifier.classify(null, e)) }
                                 ) {
+                                    val chunkData = readFileData(chunk.offset, chunk.size)
                                     val startTime = currentTimeMs()
                                     blobUploader.uploadBlock(
                                         blobUrl = initResponse.blobUrl,
                                         sasToken = initResponse.sasToken,
                                         blockId = chunk.blockId,
-                                        data = ByteArray(0), // TODO: actual file data from file reader
+                                        data = chunkData,
                                     )
                                     bandwidthEstimator.recordSample(chunk.size, currentTimeMs() - startTime)
                                 }
