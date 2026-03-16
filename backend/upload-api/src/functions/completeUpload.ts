@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { v4 as uuidv4 } from "uuid";
-import { getPrisma } from "../shared/prisma.js";
+import { ensurePrisma } from "../shared/prisma.js";
 import { commitBlockList, generateSasToken, getBlobUrl } from "../shared/storage.js";
 import { authenticateRequest } from "../middleware/auth.js";
 import { rateLimitMiddleware } from "../middleware/rateLimit.js";
@@ -18,7 +18,7 @@ async function handler(request: HttpRequest, context: InvocationContext): Promis
 
   try {
     const auth = await authenticateRequest(request);
-    const prisma = getPrisma();
+    const prisma = await ensurePrisma();
 
     // Load app config for rate limiting
     const appConfig = await prisma.appConfig.findUnique({

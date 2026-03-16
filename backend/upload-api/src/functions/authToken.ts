@@ -2,7 +2,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/fu
 import { v4 as uuidv4 } from "uuid";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
-import { getPrisma } from "../shared/prisma.js";
+import { ensurePrisma } from "../shared/prisma.js";
 import { success, error } from "../shared/response.js";
 import { AuthError, ValidationError, AppError } from "../shared/errors.js";
 
@@ -45,7 +45,7 @@ async function handler(request: HttpRequest, context: InvocationContext): Promis
       throw new ValidationError("client_secret is required");
     }
 
-    const prisma = getPrisma();
+    const prisma = await ensurePrisma();
 
     // Find app by client_id (= appId)
     const appConfig = await prisma.appConfig.findUnique({

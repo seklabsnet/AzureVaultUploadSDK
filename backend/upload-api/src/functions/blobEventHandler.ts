@@ -1,5 +1,5 @@
 import { app, EventGridEvent, InvocationContext } from "@azure/functions";
-import { getPrisma } from "../shared/prisma.js";
+import { ensurePrisma } from "../shared/prisma.js";
 import { moveBlob, deleteBlobsByPrefix } from "../shared/storage.js";
 import { dispatchWebhook, WebhookPayload } from "../shared/webhook.js";
 import { logAudit } from "../shared/audit.js";
@@ -75,7 +75,7 @@ async function handler(event: EventGridEvent, context: InvocationContext): Promi
           context.log(`[BlobEventHandler] Source blob deleted, cleaning cache for uploadId=${uploadId}`);
 
           // Look up fileId from upload record
-          const prisma = getPrisma();
+          const prisma = await ensurePrisma();
           const upload = await prisma.upload.findUnique({
             where: { id: uploadId },
             select: { fileId: true },
@@ -143,7 +143,7 @@ async function handleMalwareDetected(
   }
 
   // Find and update the upload record
-  const prisma = getPrisma();
+  const prisma = await ensurePrisma();
   const pathParts = blobPath.split("/");
   const uploadId = pathParts.length >= 5 ? pathParts[pathParts.length - 2] : null;
 

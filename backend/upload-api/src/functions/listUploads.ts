@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { v4 as uuidv4 } from "uuid";
-import { getPrisma } from "../shared/prisma.js";
+import { ensurePrisma } from "../shared/prisma.js";
 import { authenticateRequest } from "../middleware/auth.js";
 import { success, error } from "../shared/response.js";
 import { ValidationError, AppError } from "../shared/errors.js";
@@ -13,7 +13,7 @@ async function handler(request: HttpRequest, context: InvocationContext): Promis
 
   try {
     const auth = await authenticateRequest(request);
-    const prisma = getPrisma();
+    const prisma = await ensurePrisma();
 
     // Parse query parameters
     const pageParam = request.query.get("page");

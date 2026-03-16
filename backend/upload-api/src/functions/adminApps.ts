@@ -1,7 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { v4 as uuidv4 } from "uuid";
 import crypto from "crypto";
-import { getPrisma } from "../shared/prisma.js";
+import { ensurePrisma } from "../shared/prisma.js";
 import { authenticateRequest } from "../middleware/auth.js";
 import { success, error } from "../shared/response.js";
 import { ValidationError, NotFoundError, AppError } from "../shared/errors.js";
@@ -72,7 +72,7 @@ async function createApp(request: HttpRequest, context: InvocationContext): Prom
       throw new ValidationError("appId must be lowercase alphanumeric with hyphens only (e.g. 'my-app')");
     }
 
-    const prisma = getPrisma();
+    const prisma = await ensurePrisma();
 
     // Check if app already exists
     const existing = await prisma.appConfig.findUnique({ where: { appId: body.appId } });
@@ -133,7 +133,7 @@ async function listApps(request: HttpRequest, context: InvocationContext): Promi
   try {
     await authenticateRequest(request);
 
-    const prisma = getPrisma();
+    const prisma = await ensurePrisma();
     const apps = await prisma.appConfig.findMany({
       orderBy: { createdAt: "asc" },
     });
@@ -173,7 +173,7 @@ async function updateApp(request: HttpRequest, context: InvocationContext): Prom
     const appId = request.params.appId;
     if (!appId) throw new ValidationError("appId is required");
 
-    const prisma = getPrisma();
+    const prisma = await ensurePrisma();
     const existing = await prisma.appConfig.findUnique({ where: { appId } });
     if (!existing) {
       throw new NotFoundError(`App "${appId}" not found`);
