@@ -81,6 +81,47 @@ export async function deleteBlob(
   await blobClient.deleteIfExists();
 }
 
+/**
+ * Move a blob from one container/path to another (copy + delete source).
+ */
+export async function moveBlob(
+  sourceContainer: string,
+  sourcePath: string,
+  destContainer: string,
+  destPath: string,
+): Promise<void> {
+  const client = getStorageClient();
+  const sourceClient = client.getContainerClient(sourceContainer).getBlobClient(sourcePath);
+  const destClient = client.getContainerClient(destContainer).getBlobClient(destPath);
+
+  // Copy source → dest
+  const poller = await destClient.beginCopyFromURL(sourceClient.url);
+  await poller.pollUntilDone();
+
+  // Delete source
+  await sourceClient.deleteIfExists();
+}
+
+/**
+ * Delete all blobs in a container that match a prefix.
+ * Used for cache cleanup (e.g., delete all transform variants of a file).
+ */
+export async function deleteBlobsByPrefix(
+  containerName: string,
+  prefix: string,
+): Promise<number> {
+  const client = getStorageClient();
+  const containerClient = client.getContainerClient(containerName);
+  let deleted = 0;
+
+  for await (const blob of containerClient.listBlobsFlat({ prefix })) {
+    await containerClient.getBlobClient(blob.name).deleteIfExists();
+    deleted++;
+  }
+
+  return deleted;
+}
+
 export function getBlobUrl(containerName: string, blobPath: string): string {
   const accountName = process.env.StorageAccountName;
   if (!accountName) {
