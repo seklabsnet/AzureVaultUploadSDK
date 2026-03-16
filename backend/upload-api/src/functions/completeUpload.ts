@@ -7,6 +7,7 @@ import { rateLimitMiddleware } from "../middleware/rateLimit.js";
 import { success, error } from "../shared/response.js";
 import { ValidationError, NotFoundError, AppError } from "../shared/errors.js";
 import { logAudit } from "../shared/audit.js";
+import { dispatchWebhook, WebhookPayload } from "../shared/webhook.js";
 
 interface CompleteUploadBody {
   blockIds: string[];
@@ -110,6 +111,29 @@ async function handler(request: HttpRequest, context: InvocationContext): Promis
       fileSize: Number(upload.fileSize),
       blockCount: blockIds.length,
     }, request);
+
+    // Webhook dispatch (fire-and-forget)
+    if (appConfig?.webhookUrl) {
+      const webhookPayload: WebhookPayload = {
+        event: "upload.completed",
+        timestamp: completedAt.toISOString(),
+        data: {
+          uploadId,
+          fileId,
+          appId: auth.appId,
+          fileName: upload.fileName,
+          fileSize: Number(upload.fileSize),
+          mimeType: upload.mimeType,
+          entityType: upload.entityType,
+          entityId: upload.entityId,
+          status: "COMPLETED",
+          downloadUrl,
+          isPublic: upload.isPublic,
+          completedAt: completedAt.toISOString(),
+        },
+      };
+      dispatchWebhook(appConfig.webhookUrl, webhookPayload, appConfig.clientSecretHash, context);
+    }
 
     return {
       ...success({

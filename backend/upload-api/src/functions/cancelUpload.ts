@@ -6,6 +6,7 @@ import { authenticateRequest } from "../middleware/auth.js";
 import { success, error } from "../shared/response.js";
 import { ValidationError, NotFoundError, AppError } from "../shared/errors.js";
 import { logAudit } from "../shared/audit.js";
+import { dispatchWebhook, WebhookPayload } from "../shared/webhook.js";
 
 async function handler(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const correlationId = request.headers.get("x-correlation-id") ?? uuidv4();
@@ -62,6 +63,30 @@ async function handler(request: HttpRequest, context: InvocationContext): Promis
       previousStatus: upload.status,
       fileName: upload.fileName,
     }, request);
+
+    // Webhook dispatch (fire-and-forget)
+    const appConfig = await prisma.appConfig.findUnique({ where: { appId: auth.appId } });
+    if (appConfig?.webhookUrl) {
+      const webhookPayload: WebhookPayload = {
+        event: "upload.cancelled",
+        timestamp: new Date().toISOString(),
+        data: {
+          uploadId,
+          fileId: upload.fileId,
+          appId: auth.appId,
+          fileName: upload.fileName,
+          fileSize: Number(upload.fileSize),
+          mimeType: upload.mimeType,
+          entityType: upload.entityType,
+          entityId: upload.entityId,
+          status: "CANCELLED",
+          downloadUrl: null,
+          isPublic: upload.isPublic,
+          completedAt: null,
+        },
+      };
+      dispatchWebhook(appConfig.webhookUrl, webhookPayload, appConfig.clientSecretHash, context);
+    }
 
     return {
       ...success({ success: true }),
