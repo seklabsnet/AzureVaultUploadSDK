@@ -73,7 +73,7 @@ async function handler(request: HttpRequest, context: InvocationContext): Promis
     }
 
     // Rate limit check
-    rateLimitMiddleware(auth.appId, auth.userId, {
+    rateLimitMiddleware(auth.appId, auth.appId, {
       maxRequestsPerUser: appConfig.rateLimitPerMinute,
       maxRequestsPerApp: appConfig.rateLimitPerMinute * 10,
       windowMs: 60_000,

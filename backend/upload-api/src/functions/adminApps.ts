@@ -1,9 +1,19 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { v4 as uuidv4 } from "uuid";
+import crypto from "crypto";
 import { getPrisma } from "../shared/prisma.js";
 import { authenticateRequest } from "../middleware/auth.js";
 import { success, error } from "../shared/response.js";
 import { ValidationError, NotFoundError, AppError } from "../shared/errors.js";
+
+function generateClientSecret(appId: string): string {
+  const random = crypto.randomBytes(16).toString("hex");
+  return `cvlt_${appId}_${random}`;
+}
+
+function hashSecret(plain: string): string {
+  return crypto.createHash("sha256").update(plain).digest("hex");
+}
 
 const MB = 1_048_576;
 const GB = 1_073_741_824;
@@ -70,11 +80,16 @@ async function createApp(request: HttpRequest, context: InvocationContext): Prom
       throw new ValidationError(`App "${body.appId}" is already registered`);
     }
 
+    // Generate client credentials
+    const clientSecret = generateClientSecret(body.appId);
+    const clientSecretHash = hashSecret(clientSecret);
+
     // Create app config
     const appConfig = await prisma.appConfig.create({
       data: {
         appId: body.appId,
         displayName: body.displayName,
+        clientSecretHash,
         allowedMimeTypes: body.allowedMimeTypes,
         maxFileSize: body.maxFileSize,
         maxConcurrentUploads: body.maxConcurrentUploads ?? 3,
@@ -85,22 +100,20 @@ async function createApp(request: HttpRequest, context: InvocationContext): Prom
       },
     });
 
-    // TODO: Auto-create storage container (uploads-{appId}) if it doesn't exist
-
     context.log(`App registered: ${appConfig.appId} (${appConfig.displayName})`);
 
     return {
       ...success({
         appId: appConfig.appId,
         displayName: appConfig.displayName,
+        clientSecret, // ⚠️ Shown ONCE — store it securely
         allowedMimeTypes: appConfig.allowedMimeTypes,
         maxFileSize: Number(appConfig.maxFileSize),
         maxConcurrentUploads: appConfig.maxConcurrentUploads,
         storageQuota: Number(appConfig.storageQuota),
         rateLimitPerMinute: appConfig.rateLimitPerMinute,
         isActive: appConfig.isActive,
-        message: `App "${appConfig.appId}" registered successfully. ` +
-          `Storage container "uploads-${appConfig.appId}" should be created in Azure Storage.`,
+        message: `App "${appConfig.appId}" registered. Store the clientSecret securely — it won't be shown again.`,
       }, 201),
       headers: { "x-correlation-id": correlationId },
     };

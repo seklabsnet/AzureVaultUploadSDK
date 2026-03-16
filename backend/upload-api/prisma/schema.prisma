@@ -58,6 +58,7 @@ model ChunkState {
 model AppConfig {
   appId                 String   @id @map("app_id")
   displayName           String   @map("display_name")
+  clientSecretHash      String   @map("client_secret_hash")
   allowedMimeTypes      String[] @map("allowed_mime_types")
   maxFileSize           BigInt   @map("max_file_size")
   maxConcurrentUploads  Int      @default(3) @map("max_concurrent_uploads")

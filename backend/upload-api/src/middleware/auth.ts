@@ -1,18 +1,22 @@
 import { HttpRequest } from "@azure/functions";
+import jwt from "jsonwebtoken";
 import { AuthError } from "../shared/errors.js";
 
 export interface AuthContext {
-  userId: string;
   appId: string;
-  email?: string;
+}
+
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SIGNING_SECRET;
+  if (!secret) {
+    throw new Error("JWT_SIGNING_SECRET environment variable is not set");
+  }
+  return secret;
 }
 
 /**
- * Authenticates an incoming HTTP request by extracting and decoding the JWT
- * from the Authorization header.
- *
- * TODO: Production — validate JWT signature against JWKS endpoint.
- * Currently only decodes the payload without cryptographic verification.
+ * Authenticates an incoming HTTP request by verifying the JWT signature
+ * using HMAC-SHA256 and extracting the appId claim.
  */
 export async function authenticateRequest(request: HttpRequest): Promise<AuthContext> {
   const authHeader = request.headers.get("authorization");
@@ -28,42 +32,28 @@ export async function authenticateRequest(request: HttpRequest): Promise<AuthCon
   const token = parts[1];
 
   try {
-    const payload = decodeJwtPayload(token);
+    const payload = jwt.verify(token, getJwtSecret(), {
+      algorithms: ["HS256"],
+    }) as jwt.JwtPayload;
 
-    const userId = payload.sub ?? payload.userId ?? payload.oid;
-    const appId = payload.appId ?? payload.azp ?? payload.client_id;
-
-    if (!userId || !appId) {
-      throw new AuthError("Token missing required claims: userId (sub/oid) and appId (azp/client_id)");
+    const appId = payload.appId;
+    if (!appId || typeof appId !== "string") {
+      throw new AuthError("Token missing required claim: appId");
     }
 
-    return {
-      userId: String(userId),
-      appId: String(appId),
-      email: (payload.email ?? payload.preferred_username ?? undefined) as string | undefined,
-    };
+    return { appId };
   } catch (err) {
     if (err instanceof AuthError) {
       throw err;
     }
+    if (err instanceof jwt.TokenExpiredError) {
+      throw new AuthError("Token has expired. Request a new one via POST /v1/auth/token");
+    }
+    if (err instanceof jwt.JsonWebTokenError) {
+      throw new AuthError("Invalid token signature");
+    }
     throw new AuthError("Invalid or malformed token");
   }
-}
-
-function decodeJwtPayload(token: string): Record<string, unknown> {
-  const segments = token.split(".");
-  if (segments.length !== 3) {
-    throw new AuthError("Token is not a valid JWT (expected 3 segments)");
-  }
-
-  const payloadSegment = segments[1];
-
-  // Base64url decode
-  const base64 = payloadSegment.replace(/-/g, "+").replace(/_/g, "/");
-  const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
-  const decoded = Buffer.from(padded, "base64").toString("utf-8");
-
-  return JSON.parse(decoded) as Record<string, unknown>;
 }
 
 export { AuthError } from "../shared/errors.js";
