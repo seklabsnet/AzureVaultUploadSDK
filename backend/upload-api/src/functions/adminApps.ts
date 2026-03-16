@@ -2,7 +2,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/fu
 import { v4 as uuidv4 } from "uuid";
 import crypto from "crypto";
 import { ensurePrisma } from "../shared/prisma.js";
-import { authenticateRequest } from "../middleware/auth.js";
+import { authenticateAdmin } from "../middleware/adminAuth.js";
 import { success, error } from "../shared/response.js";
 import { ValidationError, NotFoundError, AppError } from "../shared/errors.js";
 
@@ -34,8 +34,7 @@ async function createApp(request: HttpRequest, context: InvocationContext): Prom
   const correlationId = request.headers.get("x-correlation-id") ?? uuidv4();
 
   try {
-    await authenticateRequest(request);
-    // TODO: Add admin role check — only admins should register apps
+    await authenticateAdmin(request);
 
     const body = (await request.json()) as CreateAppBody;
 
@@ -131,7 +130,7 @@ async function listApps(request: HttpRequest, context: InvocationContext): Promi
   const correlationId = request.headers.get("x-correlation-id") ?? uuidv4();
 
   try {
-    await authenticateRequest(request);
+    await authenticateAdmin(request);
 
     const prisma = await ensurePrisma();
     const apps = await prisma.appConfig.findMany({
@@ -168,7 +167,7 @@ async function updateApp(request: HttpRequest, context: InvocationContext): Prom
   const correlationId = request.headers.get("x-correlation-id") ?? uuidv4();
 
   try {
-    await authenticateRequest(request);
+    await authenticateAdmin(request);
 
     const appId = request.params.appId;
     if (!appId) throw new ValidationError("appId is required");

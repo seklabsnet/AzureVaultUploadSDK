@@ -19,7 +19,9 @@
     "@azure/keyvault-secrets": "^4.8.0",
     "@azure/storage-blob": "^12.17.0",
     "@prisma/client": "^5.14.0",
+    "blurhash": "^2.0.5",
     "jsonwebtoken": "^9.0.2",
+    "sharp": "^0.33.5",
     "uuid": "^9.0.1"
   },
   "devDependencies": {

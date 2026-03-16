@@ -8,6 +8,8 @@ import { success, error } from "../shared/response.js";
 import { ValidationError, NotFoundError, AppError } from "../shared/errors.js";
 import { logAudit } from "../shared/audit.js";
 import { dispatchWebhook, WebhookPayload } from "../shared/webhook.js";
+import { dispatchWebhook as dispatchWebhookService } from "../services/webhookDispatcher.js";
+import { generateBlurHash } from "../services/blurhashGenerator.js";
 
 interface CompleteUploadBody {
   blockIds: string[];
@@ -133,6 +135,34 @@ async function handler(request: HttpRequest, context: InvocationContext): Promis
         },
       };
       dispatchWebhook(appConfig.webhookUrl, webhookPayload, appConfig.clientSecretHash, context);
+    }
+
+    // Webhook dispatch via service (fire-and-forget)
+    dispatchWebhookService(auth.appId, uploadId, fileId, {
+      fileName: upload.fileName,
+      fileSize: Number(upload.fileSize),
+      mimeType: upload.mimeType,
+      entityType: upload.entityType,
+      entityId: upload.entityId,
+      completedAt,
+    });
+
+    // BlurHash generation for images (fire-and-forget)
+    if (upload.mimeType?.startsWith("image/") && upload.blobPath) {
+      generateBlurHash(containerName, upload.blobPath, upload.mimeType)
+        .then(async (blurHash) => {
+          if (blurHash) {
+            const prismaClient = await ensurePrisma();
+            await prismaClient.upload.update({
+              where: { id: uploadId },
+              data: { blurHash },
+            });
+            context.log(`[completeUpload] BlurHash generated for upload ${uploadId}`);
+          }
+        })
+        .catch((err) => {
+          context.error(`[completeUpload] BlurHash generation failed for ${uploadId}:`, err);
+        });
     }
 
     return {

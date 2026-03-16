@@ -122,6 +122,18 @@ export async function deleteBlobsByPrefix(
   return deleted;
 }
 
+export async function readBlob(containerName: string, blobPath: string): Promise<Buffer> {
+  const client = getStorageClient();
+  const containerClient = client.getContainerClient(containerName);
+  const blobClient = containerClient.getBlobClient(blobPath);
+  const download = await blobClient.download(0);
+  const chunks: Buffer[] = [];
+  for await (const chunk of download.readableStreamBody as NodeJS.ReadableStream) {
+    chunks.push(Buffer.from(chunk as unknown as ArrayBuffer));
+  }
+  return Buffer.concat(chunks);
+}
+
 export function getBlobUrl(containerName: string, blobPath: string): string {
   const accountName = process.env.StorageAccountName;
   if (!accountName) {
