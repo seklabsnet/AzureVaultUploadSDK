@@ -37,20 +37,14 @@ async function handler(request: HttpRequest, context: InvocationContext): Promis
       throw new ValidationError("uploadId is required");
     }
 
-    // Parse and validate request body
+    // Parse request body
     const body = (await request.json()) as CompleteUploadBody;
-
-    if (!body.blockIds || !Array.isArray(body.blockIds) || body.blockIds.length === 0) {
-      throw new ValidationError("blockIds is required and must be a non-empty array of strings");
-    }
-
-    if (!body.blockIds.every((id) => typeof id === "string")) {
-      throw new ValidationError("All blockIds must be strings");
-    }
+    const blockIds = body.blockIds ?? [];
 
     // Find upload and verify ownership
     const upload = await prisma.upload.findUnique({
       where: { id: uploadId },
+      include: { chunks: true },
     });
 
     if (!upload) {
@@ -68,8 +62,14 @@ async function handler(request: HttpRequest, context: InvocationContext): Promis
     // Determine container name
     const containerName = upload.isPublic ? "uploads-public" : `uploads-${auth.appId}`;
 
-    // Commit block list to Azure Storage
-    await commitBlockList(containerName, upload.blobPath!, body.blockIds);
+    // For CHUNKED uploads, commit block list; for SINGLE_SHOT, blob is already complete
+    const isChunked = upload.chunks.length > 0;
+    if (isChunked) {
+      if (!blockIds.length) {
+        throw new ValidationError("blockIds is required for chunked uploads");
+      }
+      await commitBlockList(containerName, upload.blobPath!, blockIds);
+    }
 
     // Generate unique fileId
     const fileId = uuidv4();
@@ -107,8 +107,8 @@ async function handler(request: HttpRequest, context: InvocationContext): Promis
     logAudit(uploadId, auth.appId, "UPLOAD_COMPLETED", {
       fileId,
       fileName: upload.fileName,
-      fileSize: upload.fileSize,
-      blockCount: body.blockIds.length,
+      fileSize: Number(upload.fileSize),
+      blockCount: blockIds.length,
     }, request);
 
     return {
@@ -117,7 +117,7 @@ async function handler(request: HttpRequest, context: InvocationContext): Promis
         downloadUrl,
         metadata: {
           fileName: upload.fileName,
-          fileSize: upload.fileSize,
+          fileSize: Number(upload.fileSize),
           mimeType: upload.mimeType,
           entityType: upload.entityType,
           entityId: upload.entityId,

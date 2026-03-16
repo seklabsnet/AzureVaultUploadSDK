@@ -33,37 +33,54 @@ class UploadApiClient(
     }
 
     suspend fun initiateUpload(request: InitiateUploadRequest): InitiateUploadResponse {
-        return client.post("$baseUrl/uploads/initiate") {
+        val response: ApiResponse<InitiateUploadResponse> = client.post("$baseUrl/uploads/initiate") {
             applyHeaders()
             contentType(ContentType.Application.Json)
             setBody(request)
         }.body()
+        return unwrap(response)
     }
 
     suspend fun completeUpload(request: CompleteUploadRequest): CompleteUploadResponse {
-        return client.post("$baseUrl/uploads/complete") {
+        val response: ApiResponse<CompleteUploadResponse> = client.post("$baseUrl/uploads/${request.uploadId}/complete") {
             applyHeaders()
             contentType(ContentType.Application.Json)
             setBody(request)
         }.body()
+        return unwrap(response)
     }
 
     suspend fun getUploadStatus(uploadId: String): UploadStatusResponse {
-        return client.get("$baseUrl/uploads/$uploadId/status") {
+        val response: ApiResponse<UploadStatusResponse> = client.get("$baseUrl/uploads/$uploadId/status") {
             applyHeaders()
         }.body()
+        return unwrap(response)
     }
 
     suspend fun getDownloadUrl(fileId: String): DownloadUrlResponse {
-        return client.get("$baseUrl/files/$fileId/download-url") {
+        val response: ApiResponse<DownloadUrlResponse> = client.get("$baseUrl/uploads/$fileId/download-url") {
             applyHeaders()
         }.body()
+        return unwrap(response)
     }
 
     suspend fun cancelUpload(uploadId: String) {
-        client.delete("$baseUrl/uploads/$uploadId") {
+        val response: ApiResponse<Unit> = client.delete("$baseUrl/uploads/$uploadId") {
             applyHeaders()
+        }.body()
+        if (!response.success) {
+            throw ApiException(response.error?.code ?: "UNKNOWN", response.error?.message ?: "Request failed")
         }
+    }
+
+    private fun <T> unwrap(response: ApiResponse<T>): T {
+        if (!response.success || response.data == null) {
+            throw ApiException(
+                code = response.error?.code ?: "UNKNOWN",
+                message = response.error?.message ?: "Request failed",
+            )
+        }
+        return response.data
     }
 
     @OptIn(ExperimentalUuidApi::class)
@@ -72,3 +89,5 @@ class UploadApiClient(
         header("X-Correlation-Id", Uuid.random().toString())
     }
 }
+
+class ApiException(val code: String, override val message: String) : Exception(message)

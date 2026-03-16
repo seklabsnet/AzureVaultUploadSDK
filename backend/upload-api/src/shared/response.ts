@@ -17,6 +17,6 @@ export function error(err: AppError | Error): HttpResponseInit {
   }
   return {
     status: 500,
-    jsonBody: { success: false, error: { code: "INTERNAL_ERROR", message: "An unexpected error occurred" } },
+    jsonBody: { success: false, error: { code: "INTERNAL_ERROR", message: err.message || "An unexpected error occurred" } },
   };
 }

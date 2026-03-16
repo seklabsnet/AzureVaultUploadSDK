@@ -1,6 +1,24 @@
 package com.company.upload.network
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
+
+/**
+ * Generic API wrapper — backend returns { success: true/false, data: {...}, error: {...} }
+ */
+@Serializable
+data class ApiResponse<T>(
+    val success: Boolean,
+    val data: T? = null,
+    val error: ApiErrorBody? = null,
+)
+
+@Serializable
+data class ApiErrorBody(
+    val code: String,
+    val message: String,
+    val details: JsonObject? = null,
+)
 
 @Serializable
 data class InitiateUploadRequest(
@@ -22,6 +40,7 @@ data class InitiateUploadResponse(
     val strategy: String, // SINGLE_SHOT or CHUNKED
     val maxBlockSize: Long,
     val expiresAt: String,
+    val chunkCount: Int? = null,
 )
 
 @Serializable
@@ -35,7 +54,7 @@ data class CompleteUploadRequest(
 data class CompleteUploadResponse(
     val fileId: String,
     val downloadUrl: String,
-    val metadata: Map<String, String> = emptyMap(),
+    val metadata: JsonObject? = null,
     val processingStatus: String,
     val blurHash: String? = null,
 )
@@ -53,9 +72,9 @@ data class UploadStatusResponse(
 @Serializable
 data class DownloadUrlResponse(
     val downloadUrl: String,
-    val expiresAt: String,
-    val contentType: String,
-    val fileSize: Long,
+    val expiresAt: String? = null,
+    val contentType: String? = null,
+    val fileSize: Long = 0,
     val blurHash: String? = null,
 )
 

@@ -81,9 +81,16 @@ async function handler(request: HttpRequest, context: InvocationContext): Promis
       prisma.upload.count({ where }),
     ]);
 
+    const serializedUploads = uploads.map((u) => ({
+      ...u,
+      fileSize: Number(u.fileSize),
+      createdAt: u.createdAt.toISOString(),
+      completedAt: u.completedAt?.toISOString() ?? null,
+    }));
+
     return {
       ...success({
-        uploads,
+        uploads: serializedUploads,
         total,
         page,
         limit,

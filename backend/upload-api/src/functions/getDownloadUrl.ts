@@ -57,7 +57,7 @@ async function handler(request: HttpRequest, context: InvocationContext): Promis
     const responseData: Record<string, unknown> = {
       downloadUrl,
       contentType: upload.mimeType,
-      fileSize: upload.fileSize,
+      fileSize: Number(upload.fileSize),
     };
 
     if (expiresAt) {
