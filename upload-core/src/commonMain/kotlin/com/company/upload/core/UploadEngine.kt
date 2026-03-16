@@ -20,7 +20,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-internal class UploadEngine(
+class UploadEngine(
     private val config: UploadConfig,
     private val apiClient: UploadApiClient,
     private val blobUploader: BlobUploader,
@@ -217,7 +217,9 @@ internal class UploadEngine(
                 uploadId = uploadId,
                 fileId = completeResponse.fileId,
                 downloadUrl = completeResponse.downloadUrl,
-                metadata = completeResponse.metadata,
+                metadata = completeResponse.metadata?.let { json ->
+                    json.entries.associate { (k, v) -> k to v.toString().removeSurrounding("\"") }
+                } ?: emptyMap(),
                 blurHash = completeResponse.blurHash,
             ))
         } catch (e: CancellationException) {

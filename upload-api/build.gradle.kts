@@ -35,10 +35,13 @@ kotlin {
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.koin.core)
-            implementation(project(":upload-core"))
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.content.negotiation)
+            implementation(libs.ktor.serialization.json)
+            api(project(":upload-core"))
             api(project(":upload-domain"))
-            implementation(project(":upload-network"))
-            implementation(project(":upload-storage"))
+            api(project(":upload-network"))
+            api(project(":upload-storage"))
             implementation(project(":upload-crypto"))
         }
         androidMain.dependencies {

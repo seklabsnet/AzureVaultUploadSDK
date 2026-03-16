@@ -3,6 +3,8 @@ package com.company.upload.domain
 data class UploadConfig(
     val baseUrl: String,
     val appId: String,
+    val clientId: String = "",
+    val clientSecret: String = "",
     val authProvider: suspend () -> String = { "" },
     val maxConcurrentUploads: Int = 3,
     val chunkStrategy: ChunkStrategyType = ChunkStrategyType.AUTO,

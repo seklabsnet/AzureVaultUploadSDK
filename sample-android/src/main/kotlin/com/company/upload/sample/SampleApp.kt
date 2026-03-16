@@ -11,9 +11,10 @@ class SampleApp : Application() {
         AzureVaultUpload.initialize(
             context = this,
             config = UploadConfig(
-                baseUrl = "https://YOUR_FUNCTION_APP.azurewebsites.net/api/v1",
+                baseUrl = "https://YOUR_FUNCTION_APP.azurewebsites.net/api",
                 appId = "centauri",
-                authProvider = { /* TODO: Replace with real JWT from your auth provider */ "sample-token" },
+                clientId = "centauri",
+                clientSecret = "REDACTED_SECRET",
                 cdnBaseUrl = "https://YOUR_CDN_ENDPOINT.azurefd.net",
             )
         )
