@@ -49,10 +49,11 @@ class UploadEngine(
     private fun formatSize(bytes: Long): String {
         if (bytes < 1024) return "$bytes B"
         val kb = bytes / 1024.0
-        if (kb < 1024) return "%.0f KB".format(kb)
+        if (kb < 1024) return "${kb.toInt()} KB"
         val mb = kb / 1024.0
-        if (mb < 1024) return "%.1f MB".format(mb)
-        return "%.2f GB".format(mb / 1024.0)
+        if (mb < 1024) return "${(mb * 10).toInt() / 10.0} MB"
+        val gb = mb / 1024.0
+        return "${(gb * 100).toInt() / 100.0} GB"
     }
 
     /**
