@@ -113,7 +113,11 @@ class UploadViewModel {
     }
 
     fun clear() {
-        currentUploadId?.let { uploader.cancel(it) }
+        val state = _state.value
+        // Only cancel if upload is still in progress — don't touch completed/failed
+        if (state is UploadUiState.Uploading || state is UploadUiState.Loading || state is UploadUiState.Paused) {
+            currentUploadId?.let { uploader.cancel(it) }
+        }
         _state.value = UploadUiState.Idle
         currentUploadId = null
     }
