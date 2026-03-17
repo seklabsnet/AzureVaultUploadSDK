@@ -17,5 +17,11 @@
     </array>
     <key>NSDocumentsFolderUsageDescription</key>
     <string>Yuklenecek dosyalari secmek icin erisim gerekli.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Galeriden resim ve video secmek icin erisim gerekli.</string>
+    <key>UIFileSharingEnabled</key>
+    <true/>
+    <key>LSSupportsOpeningDocumentsInPlace</key>
+    <true/>
 </dict>
 </plist>

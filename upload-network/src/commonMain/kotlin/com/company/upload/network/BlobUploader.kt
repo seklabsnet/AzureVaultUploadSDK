@@ -1,5 +1,6 @@
 package com.company.upload.network
 
+import com.company.upload.domain.UploadLogger
 import io.ktor.client.HttpClient
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
@@ -17,27 +18,29 @@ class BlobUploader(
         private const val AZURE_API_VERSION = "2023-11-03"
     }
 
-    /**
-     * Uploads the entire file in a single PUT request (for small files).
-     */
+    private fun formatSize(bytes: Long): String {
+        if (bytes < 1024) return "$bytes B"
+        val kb = bytes / 1024.0
+        if (kb < 1024) return "%.0f KB".format(kb)
+        return "%.1f MB".format(kb / 1024.0)
+    }
+
     suspend fun uploadSingleShot(
         blobUrl: String,
         sasToken: String,
         data: ByteArray,
         contentType: String?,
     ) {
+        UploadLogger.d("☁️ BLOB → PUT single-shot (${formatSize(data.size.toLong())})")
         httpClient.put(buildUrl(blobUrl, sasToken)) {
             header("x-ms-blob-type", "BlockBlob")
             header("x-ms-version", AZURE_API_VERSION)
             contentType?.let { header("Content-Type", it) }
             setBody(data)
         }
+        UploadLogger.d("☁️ BLOB ← single-shot OK")
     }
 
-    /**
-     * Uploads a single block as part of a chunked upload.
-     * The [blockId] is Base64-encoded before being sent as a query parameter.
-     */
     @OptIn(ExperimentalEncodingApi::class)
     suspend fun uploadBlock(
         blobUrl: String,
@@ -45,26 +48,25 @@ class BlobUploader(
         blockId: String,
         data: ByteArray,
     ) {
-        val encodedBlockId = Base64.encode(blockId.encodeToByteArray())
+        // blockId is already Base64-encoded from ChunkManager — use directly
+        UploadLogger.d("☁️ BLOB → PUT block id=$blockId (${formatSize(data.size.toLong())})")
         httpClient.put(buildUrl(blobUrl, sasToken)) {
             parameter("comp", "block")
-            parameter("blockid", encodedBlockId)
+            parameter("blockid", blockId)
             header("x-ms-version", AZURE_API_VERSION)
             contentType(ContentType.Application.OctetStream)
             setBody(data)
         }
+        UploadLogger.d("☁️ BLOB ← block OK id=$blockId")
     }
 
-    /**
-     * Commits a list of previously uploaded blocks, finalizing the blob.
-     * Sends an XML body containing the ordered block ID list.
-     */
     @OptIn(ExperimentalEncodingApi::class)
     suspend fun commitBlockList(
         blobUrl: String,
         sasToken: String,
         blockIds: List<String>,
     ) {
+        UploadLogger.d("☁️ BLOB → PUT blocklist (${blockIds.size} blocks)")
         val xmlBody = buildBlockListXml(blockIds)
         httpClient.put(buildUrl(blobUrl, sasToken)) {
             parameter("comp", "blocklist")
@@ -72,6 +74,7 @@ class BlobUploader(
             contentType(ContentType.Application.Xml)
             setBody(xmlBody)
         }
+        UploadLogger.d("☁️ BLOB ← blocklist committed OK")
     }
 
     private fun buildUrl(blobUrl: String, sasToken: String): String {
@@ -79,13 +82,12 @@ class BlobUploader(
         return "$blobUrl${separator}$sasToken"
     }
 
-    @OptIn(ExperimentalEncodingApi::class)
     private fun buildBlockListXml(blockIds: List<String>): String = buildString {
         append("<?xml version=\"1.0\" encoding=\"utf-8\"?>")
         append("<BlockList>")
         for (id in blockIds) {
-            val encoded = Base64.encode(id.encodeToByteArray())
-            append("<Latest>$encoded</Latest>")
+            // blockIds are already Base64-encoded from ChunkManager — use directly
+            append("<Latest>$id</Latest>")
         }
         append("</BlockList>")
     }

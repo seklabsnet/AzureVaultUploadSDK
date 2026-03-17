@@ -113,6 +113,8 @@ class UploadViewModel {
     }
 
     fun clear() {
-        scope.cancel()
+        currentUploadId?.let { uploader.cancel(it) }
+        _state.value = UploadUiState.Idle
+        currentUploadId = null
     }
 }

@@ -1,6 +1,7 @@
 package com.company.upload.core
 
 import com.company.upload.domain.RetryPolicy
+import com.company.upload.domain.UploadLogger
 import kotlinx.coroutines.delay
 
 internal class RetryHandler(private val policy: RetryPolicy) {
@@ -19,9 +20,13 @@ internal class RetryHandler(private val policy: RetryPolicy) {
                 return block(attempt)
             } catch (e: Throwable) {
                 lastException = e
-                if (!retryIf(e) || attempt == maxAttempts - 1) throw e
+                if (!retryIf(e) || attempt == maxAttempts - 1) {
+                    UploadLogger.e("🔄 Retry exhausted after ${attempt + 1}/$maxAttempts attempts: ${e::class.simpleName} — ${e.message}")
+                    throw e
+                }
 
                 val delayMs = calculateDelay(attempt, initialDelayMs, maxDelayMs)
+                UploadLogger.w("🔄 Retry ${attempt + 1}/$maxAttempts — ${e::class.simpleName}: ${e.message} — waiting ${delayMs}ms ($policy)")
                 delay(delayMs)
             }
         }

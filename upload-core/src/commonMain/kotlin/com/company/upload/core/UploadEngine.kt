@@ -4,6 +4,8 @@ import com.company.upload.domain.ErrorClassifier
 import com.company.upload.domain.FileValidator
 import com.company.upload.domain.UploadConfig
 import com.company.upload.domain.UploadError
+import com.company.upload.domain.UploadLog
+import com.company.upload.domain.UploadLogger
 import com.company.upload.domain.UploadMetadata
 import com.company.upload.domain.UploadProgress
 import com.company.upload.domain.UploadState
@@ -44,6 +46,15 @@ class UploadEngine(
     private val timeMark = kotlin.time.TimeSource.Monotonic.markNow()
     private fun currentTimeMs(): Long = timeMark.elapsedNow().inWholeMilliseconds
 
+    private fun formatSize(bytes: Long): String {
+        if (bytes < 1024) return "$bytes B"
+        val kb = bytes / 1024.0
+        if (kb < 1024) return "%.0f KB".format(kb)
+        val mb = kb / 1024.0
+        if (mb < 1024) return "%.1f MB".format(mb)
+        return "%.2f GB".format(mb / 1024.0)
+    }
+
     /**
      * @param readFileData Lambda that reads bytes from the file. (offset, size) -> ByteArray
      *   Provided by upload-api layer which has access to PlatformFile + FileReader.
@@ -54,13 +65,24 @@ class UploadEngine(
         mimeType: String?,
         metadata: UploadMetadata,
         readFileData: (offset: Long, size: Long) -> ByteArray,
-    ): Flow<UploadState> = flow {
-        emit(UploadState.Validating)
+    ): Flow<UploadState> = channelFlow {
+
+        UploadLog.block(
+            "📦 UPLOAD STARTED",
+            "File: $fileName",
+            "Size: ${formatSize(fileSize)} ($fileSize bytes)",
+            "MIME: ${mimeType ?: "unknown"}",
+            "Entity: ${metadata.entityType}/${metadata.entityId}",
+        )
 
         // 1. Validate
+        send(UploadState.Validating)
+        UploadLogger.i("🔍 Step 1/7 — Validating file...")
+
         val validation = validator.validate(fileName, fileSize, mimeType)
         if (!validation.isValid) {
-            emit(UploadState.Failed(
+            UploadLogger.e("❌ VALIDATION FAILED: ${validation.errors.joinToString(", ")}")
+            send(UploadState.Failed(
                 uploadId = null,
                 error = UploadError.Validation(
                     code = "VALIDATION_FAILED",
@@ -69,13 +91,17 @@ class UploadEngine(
                 ),
                 isRetryable = false,
             ))
-            return@flow
+            return@channelFlow
         }
+        UploadLogger.i("✅ Validation passed")
 
         // 2. Request SAS token
-        emit(UploadState.RequestingToken)
+        send(UploadState.RequestingToken)
+        UploadLogger.i("🔑 Step 2/7 — Requesting upload token from backend...")
+
         val initResponse = try {
-            apiClient.initiateUpload(InitiateUploadRequest(
+            val startTime = currentTimeMs()
+            val resp = apiClient.initiateUpload(InitiateUploadRequest(
                 fileName = fileName,
                 fileSize = fileSize,
                 mimeType = mimeType,
@@ -84,20 +110,31 @@ class UploadEngine(
                 metadata = metadata.customMetadata,
                 isPublic = metadata.isPublic,
             ))
+            val elapsed = currentTimeMs() - startTime
+            UploadLog.block(
+                "✅ TOKEN RECEIVED (${elapsed}ms)",
+                "Upload ID: ${resp.uploadId}",
+                "Blob URL: ${resp.blobUrl.take(80)}...",
+                "SAS Token: ${resp.sasToken.take(20)}...",
+                "Expires: ${resp.expiresAt}",
+            )
+            resp
         } catch (e: Exception) {
+            UploadLogger.e("❌ TOKEN REQUEST FAILED: ${e.message}")
             val category = errorClassifier.classify(null, e)
-            emit(UploadState.Failed(
+            send(UploadState.Failed(
                 uploadId = null,
                 error = UploadError.Network(code = "INIT_FAILED", userMessage = "Baglanti kurulamadi."),
                 isRetryable = errorClassifier.isRetryable(category),
             ))
-            return@flow
+            return@channelFlow
         }
 
         val uploadId = initResponse.uploadId
         val now = currentTimeMs()
 
         // 3. Persist upload state
+        UploadLogger.d("💾 Step 3/7 — Saving upload state to local DB...")
         uploadRepository.saveUpload(
             uploadId = uploadId,
             fileName = fileName,
@@ -126,15 +163,24 @@ class UploadEngine(
 
         // 5. Determine strategy and upload
         val strategy = chunkManager.determineStrategy(fileSize)
+        UploadLog.block(
+            "📊 Step 4/7 — Upload Strategy",
+            "Strategy: ${strategy.strategy}",
+            "Chunk Size: ${formatSize(strategy.chunkSize)}",
+            "Concurrency: ${strategy.concurrency}",
+        )
 
         try {
             if (strategy.strategy == UploadStrategyType.SINGLE_SHOT) {
-                emit(UploadState.Uploading(
+                UploadLogger.i("⬆️ Step 5/7 — Single-shot upload (${formatSize(fileSize)})...")
+                send(UploadState.Uploading(
                     uploadId = uploadId, progress = 0f, bytesUploaded = 0L, totalBytes = fileSize,
                     bytesPerSecond = 0L, estimatedTimeRemaining = -1L, currentChunk = 1, totalChunks = 1,
                 ))
                 // Single-shot: read entire file and upload
+                UploadLogger.d("   Reading file data...")
                 val fileData = readFileData(0, fileSize)
+                UploadLogger.d("   Uploading to Azure Blob Storage...")
                 val startTime = currentTimeMs()
                 blobUploader.uploadSingleShot(
                     blobUrl = initResponse.blobUrl,
@@ -142,9 +188,12 @@ class UploadEngine(
                     data = fileData,
                     contentType = mimeType,
                 )
-                bandwidthEstimator.recordSample(fileSize, currentTimeMs() - startTime)
+                val elapsed = currentTimeMs() - startTime
+                bandwidthEstimator.recordSample(fileSize, elapsed)
+                UploadLogger.i("✅ Single-shot upload complete (${elapsed}ms, ${formatSize((fileSize * 1000 / maxOf(elapsed, 1)))}/s)")
             } else {
                 val chunks = chunkManager.createChunks(fileSize, strategy)
+                UploadLogger.i("⬆️ Step 5/7 — Chunked upload: ${chunks.size} chunks, ${strategy.concurrency} concurrent")
 
                 chunkStateRepository.saveChunks(
                     uploadId = uploadId,
@@ -163,6 +212,7 @@ class UploadEngine(
                 val totalChunks = chunks.size
                 var uploadedChunks = 0
                 var totalBytesUploaded = 0L
+                val uploadStartTime = currentTimeMs()
 
                 coroutineScope {
                     val semaphore = kotlinx.coroutines.sync.Semaphore(strategy.concurrency)
@@ -176,6 +226,8 @@ class UploadEngine(
                                 }
                                 while (pauseMutex.withLock { uploadId in pausedUploads }) { delay(500) }
 
+                                UploadLogger.d("   📦 Chunk ${chunk.index + 1}/$totalChunks — offset=${chunk.offset} size=${formatSize(chunk.size)} blockId=${chunk.blockId}")
+
                                 retryHandler.withRetry(
                                     maxAttempts = 5,
                                     retryIf = { e -> errorClassifier.isRetryable(errorClassifier.classify(null, e)) }
@@ -188,7 +240,9 @@ class UploadEngine(
                                         blockId = chunk.blockId,
                                         data = chunkData,
                                     )
-                                    bandwidthEstimator.recordSample(chunk.size, currentTimeMs() - startTime)
+                                    val elapsed = currentTimeMs() - startTime
+                                    bandwidthEstimator.recordSample(chunk.size, elapsed)
+                                    UploadLogger.d("   ✅ Chunk ${chunk.index + 1}/$totalChunks done (${elapsed}ms)")
                                 }
 
                                 chunkStateRepository.markChunkUploaded(uploadId, chunk.index.toLong())
@@ -199,7 +253,9 @@ class UploadEngine(
                                 val bps = bandwidthEstimator.estimateBytesPerSecond()
                                 val eta = bandwidthEstimator.estimateTimeRemainingMs(fileSize - totalBytesUploaded)
 
-                                emit(UploadState.Uploading(
+                                UploadLogger.i("   📈 Progress: ${(progress * 100).toInt()}% — $uploadedChunks/$totalChunks chunks — ${formatSize(bps)}/s — ETA: ${eta / 1000}s")
+
+                                send(UploadState.Uploading(
                                     uploadId = uploadId, progress = progress, bytesUploaded = totalBytesUploaded,
                                     totalBytes = fileSize, bytesPerSecond = bps, estimatedTimeRemaining = eta,
                                     currentChunk = uploadedChunks, totalChunks = totalChunks,
@@ -210,15 +266,30 @@ class UploadEngine(
                         }
                     }.awaitAll()
                 }
+
+                val totalElapsed = currentTimeMs() - uploadStartTime
+                UploadLogger.i("✅ All $totalChunks chunks uploaded in ${totalElapsed}ms")
             }
 
             // 6. Commit
-            emit(UploadState.Committing)
+            UploadLogger.i("🔒 Step 6/7 — Committing block list to Azure...")
+            send(UploadState.Committing)
             val allChunks = chunkStateRepository.getAllChunks(uploadId)
+            UploadLogger.d("   Block IDs: ${allChunks.map { it.blockId }}")
+
+            val commitStartTime = currentTimeMs()
             val completeResponse = apiClient.completeUpload(CompleteUploadRequest(
                 uploadId = uploadId,
                 blockIds = allChunks.map { it.blockId },
             ))
+            val commitElapsed = currentTimeMs() - commitStartTime
+
+            UploadLog.block(
+                "✅ Step 7/7 — UPLOAD COMPLETE (commit: ${commitElapsed}ms)",
+                "File ID: ${completeResponse.fileId}",
+                "Download URL: ${completeResponse.downloadUrl.take(80)}...",
+                "BlurHash: ${completeResponse.blurHash ?: "none"}",
+            )
 
             // 7. Update repository
             uploadRepository.markCompleted(
@@ -233,7 +304,7 @@ class UploadEngine(
             chunkStateRepository.deleteChunks(uploadId)
             progressFlows.remove(uploadId)
 
-            emit(UploadState.Completed(
+            send(UploadState.Completed(
                 uploadId = uploadId,
                 fileId = completeResponse.fileId,
                 downloadUrl = completeResponse.downloadUrl,
@@ -243,10 +314,12 @@ class UploadEngine(
                 blurHash = completeResponse.blurHash,
             ))
         } catch (e: CancellationException) {
-            emit(UploadState.Cancelled)
+            UploadLogger.w("🛑 Upload CANCELLED: $uploadId")
+            send(UploadState.Cancelled)
         } catch (e: Exception) {
+            UploadLogger.e("❌ Upload FAILED: ${e::class.simpleName} — ${e.message}")
             val category = errorClassifier.classify(null, e)
-            emit(UploadState.Failed(
+            send(UploadState.Failed(
                 uploadId = uploadId,
                 error = UploadError.Unknown(technicalMessage = e.message),
                 isRetryable = errorClassifier.isRetryable(category),
@@ -255,6 +328,7 @@ class UploadEngine(
     }
 
     fun pause(uploadId: String): Boolean {
+        UploadLogger.w("⏸️ PAUSE requested: $uploadId")
         return kotlinx.coroutines.runBlocking {
             pauseMutex.withLock { pausedUploads.add(uploadId) }
             uploadRepository.updateStatus(uploadId, "PAUSED", 0.0, currentTimeMs())
@@ -263,6 +337,7 @@ class UploadEngine(
     }
 
     fun cancel(uploadId: String): Boolean {
+        UploadLogger.w("🛑 CANCEL requested: $uploadId")
         return kotlinx.coroutines.runBlocking {
             pauseMutex.withLock {
                 cancelledUploads.add(uploadId)

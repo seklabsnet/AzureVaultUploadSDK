@@ -33,4 +33,5 @@ dependencies {
     implementation(libs.compose.ui.tooling.preview)
     implementation(libs.activity.compose)
     implementation(libs.androidx.lifecycle.viewmodel)
+    implementation("io.coil-kt:coil-compose:2.6.0")
 }

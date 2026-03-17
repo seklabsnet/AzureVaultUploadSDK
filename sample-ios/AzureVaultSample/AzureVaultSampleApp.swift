@@ -5,7 +5,6 @@ import AzureVaultUploadSDK
 struct AzureVaultSampleApp: App {
 
     init() {
-        // SDK Initialization — 5 satır, bir kez yazılır
         AzureVaultUpload.shared.initialize(
             config: UploadConfig(
                 baseUrl: "https://YOUR_FUNCTION_APP.azurewebsites.net/api",
@@ -19,7 +18,7 @@ struct AzureVaultSampleApp: App {
 
     var body: some Scene {
         WindowGroup {
-            UploadView()
+            DevMenuView()
         }
     }
 }

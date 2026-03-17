@@ -7,21 +7,26 @@
 ./gradlew :upload-api:assembleAzureVaultUploadSDKReleaseXCFramework
 ```
 
-2. Open Xcode, create new iOS App project in this directory
+2. Open `AzureVaultSample.xcodeproj` in Xcode
 
-3. Add the XCFramework:
-   - Drag `upload-api/build/XCFrameworks/release/AzureVaultUploadSDK.xcframework` into the project
-   - Or add via SPM using the root `Package.swift`
+3. Select a simulator or device, then Run
 
-4. Copy `AzureVaultSampleApp.swift` and `UploadView.swift` into the project
+## Re-generating the Xcode project
 
-5. Run on simulator or device
+If you modify `project.yml`, regenerate with:
+```bash
+cd sample-ios
+xcodegen generate
+```
 
 ## What it demonstrates
 
-- SDK initialization (5 lines)
-- File picker integration
-- Upload with progress tracking
-- Pause/Resume/Cancel
-- Error handling with retry
-- SKIE: StateFlow → AsyncSequence, sealed class → switch/case
+- SDK initialization
+- Dev Test Menu with all upload scenarios
+- Auto-download test files from picsum.photos
+- File picker for image, video, document, audio
+- Upload with real-time progress tracking
+- Pause / Resume / Cancel
+- Batch upload
+- Validation error handling (empty file)
+- SKIE interop: StateFlow → AsyncSequence, sealed class → switch/case
