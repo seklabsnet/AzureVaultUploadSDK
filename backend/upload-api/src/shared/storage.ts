@@ -134,6 +134,29 @@ export async function readBlob(containerName: string, blobPath: string): Promise
   return Buffer.concat(chunks);
 }
 
+/**
+ * Write a source mapping blob so the CDN image transform function
+ * can resolve fileId → original blob location without a DB query.
+ * Written to: uploads-cache/{fileId}/_source.json
+ */
+export async function writeSourceMapping(
+  fileId: string,
+  containerName: string,
+  blobPath: string,
+): Promise<void> {
+  const cacheContainer = process.env.CACHE_CONTAINER || "uploads-cache";
+  const client = getStorageClient();
+  const containerClient = client.getContainerClient(cacheContainer);
+  const blobClient = containerClient.getBlockBlobClient(`${fileId}/_source.json`);
+
+  const mapping = JSON.stringify({ container: containerName, path: blobPath });
+  await blobClient.upload(mapping, mapping.length, {
+    blobHTTPHeaders: {
+      blobContentType: "application/json",
+    },
+  });
+}
+
 export function getBlobUrl(containerName: string, blobPath: string): string {
   const accountName = process.env.StorageAccountName;
   if (!accountName) {

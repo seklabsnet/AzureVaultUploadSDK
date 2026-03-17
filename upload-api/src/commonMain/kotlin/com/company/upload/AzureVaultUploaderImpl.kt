@@ -154,17 +154,15 @@ internal class AzureVaultUploaderImpl(
         format: ImageFormat,
     ): String {
         val cdnBase = config.cdnBaseUrl.trimEnd('/')
-        if (cdnBase.isEmpty()) {
-            return "" // CDN not configured
-        }
+        if (cdnBase.isEmpty()) return ""
+
         val params = buildList {
             width?.let { add("w=$it") }
             height?.let { add("h=$it") }
-            add("fit=${fit.name.lowercase()}")
-            add("q=$quality")
-            if (format != ImageFormat.AUTO) {
-                add("format=${format.name.lowercase()}")
-            }
+            if (fit != ImageFit.COVER) add("fit=${fit.name.lowercase()}")
+            if (quality != 80) add("q=$quality")
+            val f = if (format == ImageFormat.AUTO) "webp" else format.name.lowercase()
+            add("f=$f")
         }.joinToString("&")
 
         return "$cdnBase/$fileId?$params"

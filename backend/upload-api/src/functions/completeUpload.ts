@@ -1,7 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { v4 as uuidv4 } from "uuid";
 import { ensurePrisma } from "../shared/prisma.js";
-import { commitBlockList, generateSasToken, getBlobUrl } from "../shared/storage.js";
+import { commitBlockList, generateSasToken, getBlobUrl, writeSourceMapping } from "../shared/storage.js";
 import { authenticateRequest } from "../middleware/auth.js";
 import { rateLimitMiddleware } from "../middleware/rateLimit.js";
 import { success, error } from "../shared/response.js";
@@ -99,6 +99,11 @@ async function handler(request: HttpRequest, context: InvocationContext): Promis
         downloadUrl,
         completedAt,
       },
+    });
+
+    // Write source mapping for CDN image transform (fire-and-forget)
+    writeSourceMapping(fileId, containerName, upload.blobPath!).catch((err) => {
+      context.error(`[completeUpload] Source mapping write failed: ${err.message}`);
     });
 
     // Delete chunk states

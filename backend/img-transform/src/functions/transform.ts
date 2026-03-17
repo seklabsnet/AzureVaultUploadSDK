@@ -76,13 +76,16 @@ function getContentType(format: string): string {
   return types[format] || "application/octet-stream";
 }
 
-// Find the original blob by scanning possible app containers
+// Resolve fileId → original blob location via mapping blob in uploads-cache
 async function findOriginalBlob(fileId: string): Promise<{ container: string; path: string } | null> {
-  // In production, we'd look up the file path from the database.
-  // For now, we store a mapping blob or accept container+path as params.
-  // Simple approach: the CDN URL includes the original container info.
-  // Alternative: query parameter `src` with the blob path.
-  return null;
+  try {
+    const mappingPath = `${fileId}/_source.json`;
+    const data = await readBlob(CACHE_CONTAINER, mappingPath);
+    const mapping = JSON.parse(data.toString());
+    return { container: mapping.container, path: mapping.path };
+  } catch {
+    return null;
+  }
 }
 
 async function handler(req: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
@@ -109,18 +112,19 @@ async function handler(req: HttpRequest, context: InvocationContext): Promise<Ht
     // Layer 3: Transform from original
     context.log(`Cache MISS: ${cachePath} — transforming from original`);
 
-    // Read original blob
-    // The source container and path should come from query param or database lookup
-    const srcContainer = req.query.get("src_container");
-    const srcPath = req.query.get("src_path");
+    // Resolve original blob: mapping blob first, query params as fallback
+    const source = await findOriginalBlob(params.fileId);
+    const srcContainer = source?.container ?? req.query.get("src_container");
+    const srcPath = source?.path ?? req.query.get("src_path");
 
     if (!srcContainer || !srcPath) {
       return {
-        status: 400,
-        jsonBody: { error: "src_container and src_path query parameters required" },
+        status: 404,
+        jsonBody: { error: "File not found. No source mapping exists for this fileId." },
       };
     }
 
+    context.log(`Source resolved: ${srcContainer}/${srcPath}${source ? " (mapping)" : " (query params)"}`);
     const original = await readBlob(srcContainer, srcPath);
 
     // Transform with Sharp
