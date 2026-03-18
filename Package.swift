@@ -15,7 +15,7 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "AzureVaultUploadSDK",
-            url: "https://github.com/erkutkm/Sek-AzureVaultUploadSDK/releases/download/v1.0.0/AzureVaultUploadSDK.xcframework.zip",
+            url: "https://github.com/seklabsnet/AzureVaultUploadSDK/releases/download/v1.0.0/AzureVaultUploadSDK.xcframework.zip",
             checksum: "316383cb9ced850d34ebbc67c439941412044c7808bbb2e255321d18f26c54ff"
         ),
     ]

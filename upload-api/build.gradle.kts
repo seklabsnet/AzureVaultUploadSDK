@@ -94,7 +94,7 @@ publishing {
         }
         maven {
             name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/erkutkm/Sek-AzureVaultUploadSDK")
+            url = uri("https://maven.pkg.github.com/seklabsnet/AzureVaultUploadSDK")
             credentials {
                 username = System.getenv("GITHUB_ACTOR") ?: project.findProperty("gpr.user") as String? ?: ""
                 password = System.getenv("GITHUB_TOKEN") ?: project.findProperty("gpr.key") as String? ?: ""
