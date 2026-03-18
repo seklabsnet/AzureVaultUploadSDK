@@ -23,6 +23,7 @@ model Upload {
   downloadUrl   String?  @map("download_url")
   blurHash      String?  @map("blur_hash")
   md5Hash       String?  @map("md5_hash")
+  metadata      Json?
   isPublic      Boolean  @default(false) @map("is_public")
   sasToken      String?  @map("sas_token")
   sasExpiresAt  DateTime? @map("sas_expires_at")

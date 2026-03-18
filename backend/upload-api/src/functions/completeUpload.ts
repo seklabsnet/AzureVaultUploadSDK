@@ -136,6 +136,7 @@ async function handler(request: HttpRequest, context: InvocationContext): Promis
           status: "COMPLETED",
           downloadUrl,
           isPublic: upload.isPublic,
+          metadata: upload.metadata ?? undefined,
           completedAt: completedAt.toISOString(),
         },
       };

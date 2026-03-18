@@ -153,6 +153,7 @@ async function handler(request: HttpRequest, context: InvocationContext): Promis
         mimeType: body.mimeType,
         entityType: body.entityType,
         entityId: body.entityId,
+        metadata: body.metadata ? JSON.parse(JSON.stringify(body.metadata)) : undefined,
         isPublic,
         status: "UPLOADING",
         progress: 0,

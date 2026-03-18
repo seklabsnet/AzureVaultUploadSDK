@@ -19,6 +19,7 @@ export interface WebhookPayload {
     status: string;
     downloadUrl: string | null;
     isPublic: boolean;
+    metadata?: unknown;
     completedAt: string | null;
   };
 }
