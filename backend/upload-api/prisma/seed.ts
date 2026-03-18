@@ -7,10 +7,10 @@ function hashSecret(plain: string): string {
   return crypto.createHash("sha256").update(plain).digest("hex");
 }
 
-// Client secrets — store these securely, share with app teams once
+// Client secrets — load from environment variables, never hardcode
 const secrets: Record<string, string> = {
-  centauri: "REDACTED_SECRET",
-  happybrain: "REDACTED_SECRET",
+  centauri: process.env.CENTAURI_CLIENT_SECRET || "GENERATE_WITH_ADMIN_API",
+  happybrain: process.env.HAPPYBRAIN_CLIENT_SECRET || "GENERATE_WITH_ADMIN_API",
 };
 
 const apps = [

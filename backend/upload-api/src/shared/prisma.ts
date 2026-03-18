@@ -56,7 +56,7 @@ async function refreshTokenIfNeeded(): Promise<void> {
 
   tokenExpiresAt = token.expiresOnTimestamp;
 
-  const miUsername = process.env.MI_PG_USERNAME ?? "func-azurevault-upload";
+  const miUsername = process.env.MI_PG_USERNAME ?? "YOUR_FUNCTION_APP_NAME";
   process.env.DATABASE_URL = `postgresql://${miUsername}:${encodeURIComponent(token.token)}@${pgHost}:5432/${pgDb}?sslmode=require`;
 
   // Reconnect Prisma with new token

@@ -12,9 +12,9 @@ class SampleApp : Application() {
             context = this,
             config = UploadConfig(
                 baseUrl = "https://YOUR_FUNCTION_APP.azurewebsites.net/api",
-                appId = "centauri",
-                clientId = "centauri",
-                clientSecret = "REDACTED_SECRET",
+                appId = "YOUR_APP_ID",
+                clientId = "YOUR_CLIENT_ID",
+                clientSecret = "YOUR_CLIENT_SECRET_HERE",
                 cdnBaseUrl = "https://YOUR_CDN_ENDPOINT.azurefd.net",
             )
         )
