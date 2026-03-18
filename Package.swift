@@ -15,11 +15,8 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "AzureVaultUploadSDK",
-            // For local development:
-            path: "upload-api/build/XCFrameworks/release/AzureVaultUploadSDK.xcframework"
-            // For remote distribution, replace with:
-            // url: "https://github.com/company/AzureVaultUploadSDK/releases/download/1.0.0/AzureVaultUploadSDK.xcframework.zip",
-            // checksum: "<sha256-checksum>"
+            url: "https://github.com/erkutkm/Sek-AzureVaultUploadSDK/releases/download/v1.0.0/AzureVaultUploadSDK.xcframework.zip",
+            checksum: "316383cb9ced850d34ebbc67c439941412044c7808bbb2e255321d18f26c54ff"
         ),
     ]
 )
