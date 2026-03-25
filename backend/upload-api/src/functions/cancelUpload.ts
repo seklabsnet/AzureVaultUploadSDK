@@ -7,6 +7,7 @@ import { success, error } from "../shared/response.js";
 import { ValidationError, NotFoundError, AppError } from "../shared/errors.js";
 import { logAudit } from "../shared/audit.js";
 import { dispatchWebhook, WebhookPayload } from "../shared/webhook.js";
+import { dispatchEvent } from "../shared/eventBuffer.js";
 
 async function handler(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const correlationId = request.headers.get("x-correlation-id") ?? uuidv4();
@@ -64,9 +65,9 @@ async function handler(request: HttpRequest, context: InvocationContext): Promis
       fileName: upload.fileName,
     }, request);
 
-    // Webhook dispatch (fire-and-forget)
+    // Event dispatch — buffer + Redis + webhook (fire-and-forget)
     const appConfig = await prisma.appConfig.findUnique({ where: { appId: auth.appId } });
-    if (appConfig?.webhookUrl) {
+    if (appConfig) {
       const webhookPayload: WebhookPayload = {
         event: "upload.cancelled",
         timestamp: new Date().toISOString(),
@@ -85,7 +86,14 @@ async function handler(request: HttpRequest, context: InvocationContext): Promis
           completedAt: null,
         },
       };
-      dispatchWebhook(appConfig.webhookUrl, webhookPayload, appConfig.clientSecretHash, context);
+
+      dispatchEvent(auth.appId, "upload.cancelled", webhookPayload, appConfig, context).catch((err) => {
+        context.error(`[cancelUpload] Event buffer failed: ${err.message}`);
+      });
+
+      if (appConfig.webhookUrl) {
+        dispatchWebhook(appConfig.webhookUrl, webhookPayload, appConfig.clientSecretHash, context);
+      }
     }
 
     return {

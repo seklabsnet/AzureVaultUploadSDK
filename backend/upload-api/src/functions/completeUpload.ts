@@ -8,7 +8,7 @@ import { success, error } from "../shared/response.js";
 import { ValidationError, NotFoundError, AppError } from "../shared/errors.js";
 import { logAudit } from "../shared/audit.js";
 import { dispatchWebhook, WebhookPayload } from "../shared/webhook.js";
-import { dispatchWebhook as dispatchWebhookService } from "../services/webhookDispatcher.js";
+import { dispatchEvent } from "../shared/eventBuffer.js";
 import { generateBlurHash } from "../services/blurhashGenerator.js";
 
 interface CompleteUploadBody {
@@ -119,8 +119,8 @@ async function handler(request: HttpRequest, context: InvocationContext): Promis
       blockCount: blockIds.length,
     }, request);
 
-    // Webhook dispatch (fire-and-forget)
-    if (appConfig?.webhookUrl) {
+    // Event dispatch — buffer + Redis + webhook (fire-and-forget)
+    if (appConfig) {
       const webhookPayload: WebhookPayload = {
         event: "upload.completed",
         timestamp: completedAt.toISOString(),
@@ -140,18 +140,17 @@ async function handler(request: HttpRequest, context: InvocationContext): Promis
           completedAt: completedAt.toISOString(),
         },
       };
-      dispatchWebhook(appConfig.webhookUrl, webhookPayload, appConfig.clientSecretHash, context);
-    }
 
-    // Webhook dispatch via service (fire-and-forget)
-    dispatchWebhookService(auth.appId, uploadId, fileId, {
-      fileName: upload.fileName,
-      fileSize: Number(upload.fileSize),
-      mimeType: upload.mimeType,
-      entityType: upload.entityType,
-      entityId: upload.entityId,
-      completedAt,
-    });
+      // Buffer event + Redis pub/sub (always)
+      dispatchEvent(auth.appId, "upload.completed", webhookPayload, appConfig, context).catch((err) => {
+        context.error(`[completeUpload] Event buffer failed: ${err.message}`);
+      });
+
+      // Webhook (backward compatible)
+      if (appConfig.webhookUrl) {
+        dispatchWebhook(appConfig.webhookUrl, webhookPayload, appConfig.clientSecretHash, context);
+      }
+    }
 
     // BlurHash generation for images (fire-and-forget)
     if (upload.mimeType?.startsWith("image/") && upload.blobPath) {

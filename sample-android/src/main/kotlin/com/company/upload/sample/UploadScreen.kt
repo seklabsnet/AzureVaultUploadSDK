@@ -21,6 +21,7 @@ fun UploadScreen(viewModel: UploadViewModel = remember { UploadViewModel() }) {
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let {
             val file = it.toPlatformFile(context.contentResolver)
+            // In production: pass grant via customMetadata = mapOf("x-upload-grant" to grant)
             viewModel.upload(file, "document", "doc_001")
         }
     }

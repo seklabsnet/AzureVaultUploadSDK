@@ -22,11 +22,20 @@ class UploadViewModel {
 
     private var currentUploadId: String? = null
 
-    fun upload(fileRef: PlatformFile, entityType: String, entityId: String) {
+    fun upload(
+        fileRef: PlatformFile,
+        entityType: String,
+        entityId: String,
+        customMetadata: Map<String, String> = emptyMap(),
+    ) {
         scope.launch {
             uploader.upload(
                 file = fileRef,
-                metadata = UploadMetadata(entityType = entityType, entityId = entityId),
+                metadata = UploadMetadata(
+                    entityType = entityType,
+                    entityId = entityId,
+                    customMetadata = customMetadata,
+                ),
             ).collect { uploadState ->
                 _state.value = when (uploadState) {
                     is UploadState.Validating ->

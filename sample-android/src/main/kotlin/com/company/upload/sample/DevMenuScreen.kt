@@ -132,6 +132,10 @@ fun DevMenuScreen() {
             Log.i(TAG, "│ Entity: $pendingEntityType")
             Log.i(TAG, "└─────────────────────────────────────────────")
             showSheet = true
+            // In production: get grant from your backend (POST /api/upload/start)
+            // val grant = api.post("/api/upload/start", mapOf("entityType" to pendingEntityType))
+            // customMetadata = mapOf("x-upload-grant" to grant.grant)
+            // For sample app: upload without grant (backend will receive event.grant = null)
             viewModel.upload(platformFile, pendingEntityType, "test_${System.currentTimeMillis()}")
         }
     }

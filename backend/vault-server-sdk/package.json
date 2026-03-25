@@ -1,0 +1,30 @@
+{
+  "name": "@pallasite/vault-server-sdk",
+  "version": "1.0.0",
+  "description": "Server-side SDK for receiving real-time upload events from AzureVaultUploadSDK. No webhooks, no endpoints, no firewall rules.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": ["azure", "vault", "upload", "sdk", "server", "events", "polling", "redis"],
+  "author": "Pallasite",
+  "license": "MIT",
+  "dependencies": {
+    "jsonwebtoken": "^9.0.2"
+  },
+  "optionalDependencies": {
+    "redis": "^4.6.0"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

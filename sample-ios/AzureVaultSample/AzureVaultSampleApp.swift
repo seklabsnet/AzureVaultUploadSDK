@@ -5,6 +5,9 @@ import AzureVaultUploadSDK
 struct AzureVaultSampleApp: App {
 
     init() {
+        // Client SDK initialization — talks to VaultSDK Backend for upload lifecycle.
+        // Your backend uses VaultServerSDK (npm package) to receive upload events.
+        // See: backend/vault-server-sdk/ for server-side integration.
         AzureVaultUpload.shared.initialize(
             config: UploadConfig(
                 baseUrl: "https://YOUR_FUNCTION_APP.azurewebsites.net/api",

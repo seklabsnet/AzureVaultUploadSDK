@@ -8,6 +8,9 @@ import com.company.upload.initialize
 class SampleApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        // Client SDK initialization — talks to VaultSDK Backend for upload lifecycle.
+        // Your backend uses VaultServerSDK (npm package) to receive upload events.
+        // See: backend/vault-server-sdk/ for server-side integration.
         AzureVaultUpload.initialize(
             context = this,
             config = UploadConfig(

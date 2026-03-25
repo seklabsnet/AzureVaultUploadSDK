@@ -3,6 +3,7 @@ import { ensurePrisma } from "../shared/prisma.js";
 import { moveBlob, deleteBlobsByPrefix } from "../shared/storage.js";
 import { dispatchWebhook, WebhookPayload } from "../shared/webhook.js";
 import { logAudit } from "../shared/audit.js";
+import { dispatchEvent } from "../shared/eventBuffer.js";
 
 interface BlobEventData {
   api?: string;
@@ -169,9 +170,9 @@ async function handleMalwareDetected(
     quarantinePath: `malware/${blobPath}`,
   });
 
-  // Webhook
+  // Event dispatch — buffer + Redis + webhook (fire-and-forget)
   const appConfig = await prisma.appConfig.findUnique({ where: { appId: upload.appId } });
-  if (appConfig?.webhookUrl) {
+  if (appConfig) {
     const payload: WebhookPayload = {
       event: "upload.failed",
       timestamp: new Date().toISOString(),
@@ -190,7 +191,14 @@ async function handleMalwareDetected(
         completedAt: null,
       },
     };
-    dispatchWebhook(appConfig.webhookUrl, payload, appConfig.clientSecretHash, context);
+
+    dispatchEvent(upload.appId, "upload.failed", payload, appConfig, context).catch((err) => {
+      context.error(`[blobEventHandler] Event buffer failed: ${err.message}`);
+    });
+
+    if (appConfig.webhookUrl) {
+      dispatchWebhook(appConfig.webhookUrl, payload, appConfig.clientSecretHash, context);
+    }
   }
 
   context.log(`[BlobEventHandler] Upload ${uploadId} marked FAILED, webhook dispatched`);

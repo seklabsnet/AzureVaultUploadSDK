@@ -441,7 +441,18 @@ class DevMenuViewModel: ObservableObject {
         _ = url.startAccessingSecurityScopedResource()
         let file = PlatformFile(url: url)
         let entityId = "test_\(Int(Date().timeIntervalSince1970))"
-        viewModel.upload(fileRef: file, entityType: pendingEntityType, entityId: entityId)
+
+        // In production: get grant from your backend (POST /api/upload/start)
+        // let grant = try await api.post("/api/upload/start", body: ["entityType": pendingEntityType])
+        // For sample app: upload without grant (backend will receive event.grant = null)
+        let grantMetadata: [String: String] = [:]  // Add "x-upload-grant": grant.grant in production
+
+        viewModel.upload(
+            fileRef: file,
+            entityType: pendingEntityType,
+            entityId: entityId,
+            customMetadata: grantMetadata
+        )
 
         Task {
             for await uiState in viewModel.state {
