@@ -99,6 +99,7 @@ async function getRedisPublisher(url: string, password?: string) {
 
   // Dynamic import to avoid hard dependency on redis package
   try {
+    // @ts-ignore — redis is an optional runtime dependency, not in package.json
     const { createClient } = await import("redis");
     const client = createClient({ url, password });
     client.on("error", (err: Error) => {

@@ -1,5 +1,5 @@
 {
-  "name": "@pallasite/vault-server-sdk",
+  "name": "@seklabsnet/vault-server-sdk",
   "version": "1.0.0",
   "description": "Server-side SDK for receiving real-time upload events from AzureVaultUploadSDK. No webhooks, no endpoints, no firewall rules.",
   "main": "dist/index.js",
@@ -26,5 +26,13 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/seklabsnet/AzureVaultUploadSDK.git",
+    "directory": "backend/vault-server-sdk"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   }
 }

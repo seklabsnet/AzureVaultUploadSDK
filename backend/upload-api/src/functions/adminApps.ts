@@ -230,9 +230,59 @@ app.http("listApps", {
   handler: listApps,
 });
 
+// POST /v1/admin/apps/{appId}/rotate-secret — Generate new client secret
+async function rotateSecret(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+  const correlationId = request.headers.get("x-correlation-id") ?? uuidv4();
+
+  try {
+    await authenticateAdmin(request);
+
+    const appId = request.params.appId;
+    if (!appId) throw new ValidationError("appId is required");
+
+    const prisma = await ensurePrisma();
+    const existing = await prisma.appConfig.findUnique({ where: { appId } });
+    if (!existing) {
+      throw new NotFoundError(`App "${appId}" not found`);
+    }
+
+    const clientSecret = generateClientSecret(appId);
+    const clientSecretHash = hashSecret(clientSecret);
+
+    await prisma.appConfig.update({
+      where: { appId },
+      data: { clientSecretHash },
+    });
+
+    context.log(`Secret rotated for app: ${appId}`);
+
+    return {
+      ...success({
+        appId,
+        clientSecret,
+        message: `Secret rotated for "${appId}". Store the new clientSecret securely — it won't be shown again.`,
+      }),
+      headers: { "x-correlation-id": correlationId },
+    };
+  } catch (err) {
+    context.error(`[rotateSecret] Error:`, err);
+    return {
+      ...error(err instanceof AppError ? err : (err as Error)),
+      headers: { "x-correlation-id": correlationId },
+    };
+  }
+}
+
 app.http("updateApp", {
   methods: ["PUT"],
   authLevel: "anonymous",
   route: "v1/admin/apps/{appId}",
   handler: updateApp,
+});
+
+app.http("rotateSecret", {
+  methods: ["POST"],
+  authLevel: "anonymous",
+  route: "v1/admin/apps/{appId}/rotate-secret",
+  handler: rotateSecret,
 });

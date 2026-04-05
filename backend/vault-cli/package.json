@@ -1,0 +1,12 @@
+{
+  "name": "vault-cli",
+  "version": "1.0.0",
+  "description": "Admin CLI for AzureVaultUploadSDK — register apps, rotate secrets, list config",
+  "type": "module",
+  "bin": {
+    "vault-cli": "./vault-cli.mjs"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
